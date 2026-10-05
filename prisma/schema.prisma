@@ -1,0 +1,204 @@
+// Prisma Schema for FoodBridge
+// PostGIS-enabled PostgreSQL schema & models for real-time food donation platform
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+enum Role {
+  DONOR
+  NGO
+  VOLUNTEER
+  ADMIN
+}
+
+enum DonationStatus {
+  POSTED
+  AI_MATCHED
+  ACCEPTED
+  PICKED_UP
+  DISTRIBUTED
+  AUDITED
+  EXPIRED
+}
+
+enum FoodCategory {
+  COOKED_MEALS
+  BAKERY_PASTRY
+  FRESH_PRODUCE
+  DAIRY_PACKAGED
+  FROZEN
+  RAW_INGREDIENTS
+}
+
+enum StorageRequirement {
+  AMBIENT
+  REFRIGERATED
+  FROZEN
+  HOT_CONTAINER
+}
+
+enum VehicleType {
+  BICYCLE
+  MOTORCYCLE
+  CAR
+  VAN
+  REFRIGERATED_TRUCK
+}
+
+model User {
+  id            String     @id @default(uuid())
+  email         String     @unique
+  name          String
+  role          Role
+  phone         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  donorProfile  DonorProfile?
+  ngoProfile    NgoProfile?
+  volunteerProfile VolunteerProfile?
+  donations     Donation[] @relation("DonorUser")
+  deliveries    DistributionLog[] @relation("VolunteerUser")
+}
+
+model DonorProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orgType         String   // Restaurant, Hotel, Event Manager, Household, Bakery
+  reputationScore Float    @default(4.8)
+  address         String
+  latitude        Float
+  longitude       Float
+  verificationDoc String?
+  createdAt       DateTime @default(now())
+}
+
+model NgoProfile {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  capacityServings   Int      // Daily intake capacity
+  currentRemaining   Int      // Remaining capacity today
+  dietaryConstraints String[] // e.g., ["HALAL", "VEGETARIAN", "NUT_FREE"]
+  intakeStartHour    String   @default("08:00")
+  intakeEndHour      String   @default("22:00")
+  address            String
+  latitude           Float
+  longitude          Float
+  verificationDoc    String?
+  createdAt          DateTime @default(now())
+}
+
+model VolunteerProfile {
+  id             String      @id @default(uuid())
+  userId         String      @unique
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicleType    VehicleType @default(CAR)
+  isAvailable    Boolean     @default(true)
+  currentLat     Float
+  currentLng     Float
+  activePayload  Int         @default(0) // weight/volume in kg
+  maxCapacityKg  Float       @default(50.0)
+  createdAt      DateTime    @default(now())
+}
+
+model Donation {
+  id                  String             @id @default(uuid())
+  donorId             String
+  donor               User               @relation("DonorUser", fields: [donorId], references: [id])
+  title               String
+  description         String?
+  category            FoodCategory
+  servingsCount       Int
+  weightKg            Float
+  prepTime            DateTime
+  expirationEta       DateTime
+  storageRequirement  StorageRequirement @default(AMBIENT)
+  imageUrl            String?
+  status              DonationStatus     @default(POSTED)
+  
+  // AI Metrics
+  urgencyScore        Float              @default(0.0) // 0 - 100
+  qualityIndex        Float              @default(95.0) // 0 - 100 from CV Inspector
+  spoilageRiskFlag    Boolean            @default(false)
+  aiMatchedNgoId      String?
+  
+  // Coordinates
+  latitude            Float
+  longitude           Float
+  address             String
+
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  matchLogs           MatchLog[]
+  distributionLogs    DistributionLog[]
+  telemetryLogs       ContainerTelemetry[]
+}
+
+model MatchLog {
+  id             String   @id @default(uuid())
+  donationId     String
+  donation       Donation @relation(fields: [donationId], references: [id], onDelete: Cascade)
+  ngoId          String
+  matchScore     Float    // Multi-factor % match score
+  distanceKm     Float
+  urgencyWeight  Float
+  dietaryMatch   Boolean
+  capacityMatch  Boolean
+  createdAt      DateTime @default(now())
+}
+
+model DistributionLog {
+  id                 String     @id @default(uuid())
+  donationId         String
+  donation           Donation   @relation(fields: [donationId], references: [id], onDelete: Cascade)
+  volunteerId        String?
+  volunteer          User?      @relation("VolunteerUser", fields: [volunteerId], references: [id])
+  ngoId              String?
+  status             DonationStatus
+  
+  // Cryptographic Proof of Handoff
+  pickupQrHash       String?    // HMAC-SHA256 Pickup Token
+  deliveryQrHash     String?    // HMAC-SHA256 Delivery Token
+  pickupTime         DateTime?
+  deliveryTime       DateTime?
+  
+  // GPS Trail
+  pickupLat          Float?
+  pickupLng          Float?
+  deliveryLat        Float?
+  deliveryLng        Float?
+  
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+}
+
+model ContainerTelemetry {
+  id               String   @id @default(uuid())
+  donationId       String
+  donation         Donation @relation(fields: [donationId], references: [id], onDelete: Cascade)
+  sensorId         String
+  temperatureC     Float
+  humidityPct      Float
+  thermalBreach    Boolean  @default(false)
+  recordedAt       DateTime @default(now())
+}
+
+model SocialImpactMetrics {
+  id               String   @id @default(uuid())
+  donationId       String   @unique
+  co2SavedKg       Float    // 2.5 kg CO2e per kg food saved
+  waterSavedLiters Float    // 1000 Liters per kg food saved
+  mealsProvided    Int      // Servings count
+  auditedAt        DateTime @default(now())
+}

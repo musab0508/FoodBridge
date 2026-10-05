@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: foodbridge_db
+    restart: always
+    environment:
+      POSTGRES_USER: foodbridge_admin
+      POSTGRES_PASSWORD: secret_pass_2026
+      POSTGRES_DB: foodbridge_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U foodbridge_admin -d foodbridge_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ai_engine:
+    build:
+      context: .
+      dockerfile: Dockerfile.ai
+    container_name: foodbridge_ai
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: foodbridge_web
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://foodbridge_admin:secret_pass_2026@postgres:5432/foodbridge_db?schema=public&sslmode=disable
+      - AI_MICROSERVICE_URL=http://ai_engine:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ai_engine:
+        condition: service_healthy
+
+volumes:
+  pgdata:
