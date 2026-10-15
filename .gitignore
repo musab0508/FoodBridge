@@ -1,10 +1,33 @@
+# Dependencies
 node_modules/
-.next/
+frontend/node_modules/
+
+# Python Virtual Environments & Cache
 venv/
 .venv/
+env/
 __pycache__/
 *.pyc
-.env
-db.sqlite3
+*.pyo
+*.pyd
+
+# Next.js & Vite Builds
+.next/
 dist/
+frontend/dist/
 build/
+*.tsbuildinfo
+
+# Database & Environment Variables
+*.sqlite3
+db.sqlite3
+.env
+.env.local
+.env.*.local
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

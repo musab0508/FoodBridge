@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #F9F9FB;
+    color: #2D3748;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+.organic-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease-in-out;
+}
+
+.organic-card:hover {
+  box-shadow: 0 8px 20px rgba(30, 58, 43, 0.08);
+  border-color: #CBD5E1;
+}
+
+.badge-critical {
+  background-color: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid #FCA5A5;
+}
+
+.badge-high {
+  background-color: #FFFBEB;
+  color: #D97706;
+  border: 1px solid #FCD34D;
+}
+
+.badge-normal {
+  background-color: #F0FDF4;
+  color: #16A34A;
+  border: 1px solid #86EFAC;
+}
